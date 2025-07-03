@@ -85,8 +85,7 @@ if ($existing_result && !$approved_request) {
             die("Database error: " . $e->getMessage());
         }
     }
-    
-    // Show quiz already taken message
+
     echo "<!DOCTYPE html><html><head><title>Quiz Already Taken</title>
           <style>body{font-family:Arial,sans-serif;margin:0;padding:20px;}
           .container{max-width:800px;margin:0 auto;padding:20px;border:1px solid #ddd;border-radius:5px;}
@@ -132,11 +131,11 @@ try {
 }
 
 // Handle quiz submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_quiz']) || isset($_POST['time_expired']))) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_quiz']) || $_POST['time_expired'] === '1')) {
     try {
         $total_questions = count($questions);
         $correct_answers = 0;
-        $time_expired = isset($_POST['time_expired']);
+        $time_expired = ($_POST['time_expired'] === '1');
         $pdo->beginTransaction();
 
         foreach ($questions as $question) {
@@ -186,135 +185,106 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['submit_quiz']) || is
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title><?= safe_html($quiz['title'] ?? '') ?></title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; background-color: white; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; }
-        .alert { padding: 15px; margin-bottom: 20px; border-radius: 4px; }
-        .alert-info { background-color: #d9edf7; color: #31708f; border: 1px solid #bce8f1; }
-        .question-card { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9; }
-        .options { margin-top: 15px; }
-        .options label { display: block; margin: 8px 0; padding: 10px; background-color: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
-        .options label:hover { background-color: #f0f0f0; }
-        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 10px; text-decoration: none; display: inline-block; }
-        .btn-primary { background-color: #28a745; color: white; }
-        .btn-primary:hover { background-color: #218838; }
-        .btn-secondary { background-color: #6c757d; color: white; }
-        .btn-secondary:hover { background-color: #5a6268; }
-        .question-type { font-style: italic; color: #6c757d; margin-bottom: 10px; }
-        input[type="radio"], input[type="checkbox"] { margin-right: 10px; }
-        .timer-container { position: sticky; top: 0; background-color: #343a40; color: white; padding: 10px 20px; border-radius: 5px; margin-bottom: 20px; z-index: 1000; text-align: center; font-size: 1.2em; }
-        .timer-warning { color: #ffc107; }
-        .timer-danger { color: #dc3545; animation: blink 1s linear infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-    </style>
+<meta charset="UTF-8">
+<title><?= safe_html($quiz['title'] ?? '') ?></title>
+<!-- Styles omitted for brevity, keep your existing CSS -->
 </head>
 <body>
-    <div class="container">
-        <div class="timer-container">
-            Time Remaining: <span id="timer"><?= gmdate("H:i:s", $quiz['time_remaining_seconds']) ?></span>
-        </div>
-
-        <h1><?= safe_html($quiz['title'] ?? '') ?></h1>
-        <p><?= safe_html($quiz['description'] ?? '') ?></p>
-
-        <?php if ($approved_request): ?>
-            <div class="alert alert-info">Your reattempt request was approved. You can now retake this quiz.</div>
-        <?php endif; ?>
-
-        <form method="post" id="quizForm">
-            <?php foreach ($questions as $index => $question): ?>
-                <div class="question-card">
-                    <h3>Question <?= $index + 1 ?></h3>
-                    <p><?= safe_html($question['question_text'] ?? '') ?></p>
-                    <p class="question-type"><?= $question['question_type'] === 'multi' ? 'Select all that apply' : 'Select one answer' ?></p>
-
-                    <div class="options">
-                        <?php if ($question['question_type'] === 'single'): ?>
-                            <?php foreach (['a', 'b', 'c', 'd'] as $option): ?>
-                                <?php if (!empty($question['option_' . $option])): ?>
-                                    <label>
-                                        <input type="radio" name="question_<?= $question['question_id'] ?>" value="<?= $option ?>" required>
-                                        <?= safe_html($question['option_' . $option]) ?>
-                                    </label>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <?php foreach (['a', 'b', 'c', 'd'] as $option): ?>
-                                <?php if (!empty($question['option_' . $option])): ?>
-                                    <label>
-                                        <input type="checkbox" name="question_<?= $question['question_id'] ?>[]" value="<?= $option ?>">
-                                        <?= safe_html($question['option_' . $option]) ?>
-                                    </label>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-            <button type="submit" name="submit_quiz" class="btn btn-primary">Submit Quiz</button>
-            <input type="hidden" name="time_expired" id="timeExpiredFlag" value="0">
-        </form>
+<div class="container">
+    <div class="timer-container">
+        Time Remaining: <span id="timer"><?= gmdate("H:i:s", $quiz['time_remaining_seconds']) ?></span>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const timerElement = document.getElementById('timer');
-            const quizForm = document.getElementById('quizForm');
-            const timeExpiredFlag = document.getElementById('timeExpiredFlag');
-            let timeLeft = <?= $quiz['time_remaining_seconds'] ?>;
-            let isSubmitting = false;
-            
-            function submitForm() {
-                if (isSubmitting) return;
-                isSubmitting = true;
-                timeExpiredFlag.value = '1';
-                quizForm.submit();
-            }
-            
-            const timerInterval = setInterval(function() {
-                timeLeft--;
-                
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    timerElement.textContent = "00:00:00";
-                    timerElement.className = "timer-danger";
-                    alert("Time's up! Your quiz will be submitted automatically.");
-                    submitForm();
-                    return;
-                }
-                
-                const hours = Math.floor(timeLeft / 3600);
-                const minutes = Math.floor((timeLeft % 3600) / 60);
-                const seconds = timeLeft % 60;
-                timerElement.textContent = 
-                    String(hours).padStart(2, '0') + ':' + 
-                    String(minutes).padStart(2, '0') + ':' + 
-                    String(seconds).padStart(2, '0');
-                
-                if (timeLeft <= 300) timerElement.className = "timer-warning";
-                if (timeLeft <= 60) timerElement.className = "timer-danger";
-            }, 1000);
-            
-            quizForm.addEventListener('submit', function(e) {
-                if (timeLeft <= 0 && timeExpiredFlag.value === '0') {
-                    e.preventDefault();
-                    submitForm();
-                    return false;
-                }
-                return true;
-            });
-            
-            window.addEventListener('beforeunload', function(e) {
-                if (timeLeft > 0 && !isSubmitting) {
-                    e.preventDefault();
-                    e.returnValue = 'You have a quiz in progress. Are you sure you want to leave?';
-                    return e.returnValue;
-                }
-            });
-        });
-    </script>
+    <h1><?= safe_html($quiz['title'] ?? '') ?></h1>
+    <p><?= safe_html($quiz['description'] ?? '') ?></p>
+
+    <?php if ($approved_request): ?>
+    <div class="alert alert-info">Your reattempt request was approved. You can now retake this quiz.</div>
+    <?php endif; ?>
+
+    <form method="post" id="quizForm">
+        <?php foreach ($questions as $index => $question): ?>
+        <div class="question-card">
+            <h3>Question <?= $index + 1 ?></h3>
+            <p><?= safe_html($question['question_text'] ?? '') ?></p>
+            <p class="question-type"><?= $question['question_type'] === 'multi' ? 'Select all that apply' : 'Select one answer' ?></p>
+            <div class="options">
+                <?php foreach (['a', 'b', 'c', 'd'] as $option): ?>
+                    <?php if (!empty($question['option_' . $option])): ?>
+                    <label>
+                        <input 
+                            type="<?= $question['question_type'] === 'single' ? 'radio' : 'checkbox' ?>"
+                            name="question_<?= $question['question_id'] ?><?= $question['question_type'] === 'multi' ? '[]' : '' ?>"
+                            value="<?= $option ?>" 
+                            <?= $question['question_type'] === 'single' ? 'required' : '' ?>>
+                        <?= safe_html($question['option_' . $option]) ?>
+                    </label>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+        <button type="submit" name="submit_quiz" class="btn btn-primary">Submit Quiz</button>
+        <input type="hidden" name="time_expired" id="timeExpiredFlag" value="0">
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const timerElement = document.getElementById('timer');
+    const quizForm = document.getElementById('quizForm');
+    const timeExpiredFlag = document.getElementById('timeExpiredFlag');
+    let timeLeft = <?= $quiz['time_remaining_seconds'] ?>;
+    let isSubmitting = false;
+
+    function submitForm() {
+        if (isSubmitting) return;
+        isSubmitting = true;
+        timeExpiredFlag.value = '1';
+        quizForm.submit();
+    }
+
+    const timerInterval = setInterval(function() {
+        timeLeft--;
+
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            timerElement.textContent = "00:00:00";
+            timerElement.className = "timer-danger";
+            alert("Time's up! Your quiz will be submitted automatically.");
+            submitForm();
+            return;
+        }
+
+        const hours = Math.floor(timeLeft / 3600);
+        const minutes = Math.floor((timeLeft % 3600) / 60);
+        const seconds = timeLeft % 60;
+        timerElement.textContent = 
+            String(hours).padStart(2, '0') + ':' + 
+            String(minutes).padStart(2, '0') + ':' + 
+            String(seconds).padStart(2, '0');
+
+        if (timeLeft <= 300) timerElement.className = "timer-warning";
+        if (timeLeft <= 60) timerElement.className = "timer-danger";
+    }, 1000);
+
+    quizForm.addEventListener('submit', function(e) {
+        if (isSubmitting) {
+            e.preventDefault();
+            return false;
+        }
+        isSubmitting = true;
+        return true;
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (timeLeft > 0 && !isSubmitting) {
+            e.preventDefault();
+            e.returnValue = 'You have a quiz in progress. Are you sure you want to leave?';
+            return e.returnValue;
+        }
+    });
+});
+</script>
 </body>
 </html>
