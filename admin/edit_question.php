@@ -87,13 +87,70 @@ $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fet
     <title>Edit Question | Quiz Application</title>
     <link rel="stylesheet" href="../styles.css">
     <style>
+        /* Dashboard Styles */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .sidebar {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            height: fit-content;
+        }
+        
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .sidebar li {
+            margin-bottom: 10px;
+        }
+        
+        .sidebar a {
+            color: white;
+            text-decoration: none;
+            display: block;
+            padding: 8px 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .sidebar a:hover, .sidebar a.active {
+            background-color: #3498db;
+        }
+        
+        .main-content {
+            display: grid;
+            gap: 20px;
+        }
+        
+        /* Admin Header Styles */
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .admin-title {
+            font-size: 1.8rem;
+            color: #2c3e50;
+        }
+        
+        /* Edit Form Styles */
         .edit-form {
             background-color: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             max-width: 800px;
-            margin: 0 auto;
+            width: 100%;
         }
         
         .form-group {
@@ -160,6 +217,44 @@ $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fet
             background-color: #f2dede;
             color: #a94442;
         }
+        
+        /* Button Styles */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.875rem;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-delete {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background-color: #c0392b;
+        }
+        
+        .btn-logout {
+            background-color: #7f8c8d;
+            color: white;
+        }
+        
+        .btn-logout:hover {
+            background-color: #95a5a6;
+        }
     </style>
 </head>
 <body>
@@ -179,7 +274,7 @@ $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fet
                 <ul>
                     <li><a href="dashboard.php">Dashboard</a></li>
                     <li><a href="add_question.php">Add Questions</a></li>
-                    <li><a href="manage_questions.php">Manage Questions</a></li>
+                    <li><a href="manage_questions.php" class="active">Manage Questions</a></li>
                     <li><a href="manage_quizzes.php">Manage Quizzes</a></li>
                     <li><a href="manage_users.php">Manage Users</a></li>
                     <li><a href="view_results.php">View Results</a></li>
