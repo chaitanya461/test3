@@ -4,8 +4,8 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 $required_files = [
-    '../../includes/config.php',
-    '../../includes/auth_functions.php'
+    '../includes/config.php',
+    '../includes/auth_functions.php'
 ];
 
 foreach ($required_files as $file) {
@@ -14,15 +14,15 @@ foreach ($required_files as $file) {
     }
 }
 
-require_once '../../includes/config.php';
-require_once '../../includes/auth_functions.php';
+require_once '../includes/config.php';
+require_once '../includes/auth_functions.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 if (!function_exists('isLoggedIn') || !isLoggedIn()) {
-    header("Location: ../../login.php");
+    header("Location: ../login.php");
     exit;
 }
 
@@ -137,7 +137,7 @@ try {
             </div>
 
             <button type="submit" name="update_time_limit" class="btn btn-primary">Update Time Limit</button>
-            <a href="../dashboard.php" class="btn btn-secondary">Back to Dashboard</a>
+            <a href="dashboard.php" class="btn btn-secondary">Back to Dashboard</a>
         </form>
 
         <div class="quiz-info">
