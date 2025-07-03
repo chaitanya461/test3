@@ -43,6 +43,7 @@ CREATE TABLE user_responses (
 );
 
 -- Create quiz results table
+
 CREATE TABLE quiz_results (
     result_id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(user_id),
@@ -50,7 +51,8 @@ CREATE TABLE quiz_results (
     total_questions INT NOT NULL,
     correct_answers INT NOT NULL,
     score DECIMAL(5,2) NOT NULL,
-    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    completed_at TIMESTAMP DEFAULT NOW(),
+    time_expired BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE quiz_reattempt_requests (
@@ -60,12 +62,15 @@ CREATE TABLE quiz_reattempt_requests (
     request_date TIMESTAMP NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending' 
         CHECK (status IN ('pending', 'approved', 'rejected', 'completed')),
+    processed_date TIMESTAMP,
+    processed_by INT,
     admin_id INTEGER NULL,
     response_date TIMESTAMP NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (quiz_id) REFERENCES quizzes(quiz_id),
     FOREIGN KEY (admin_id) REFERENCES users(user_id)
 );
+
 
 -- Create an admin user (password: admin123 - change this in production)
 INSERT INTO users (username, email, password_hash, is_admin)
@@ -91,6 +96,14 @@ ALTER TABLE questions
 ADD COLUMN IF NOT EXISTS question_type VARCHAR(10) NOT NULL DEFAULT 'single' CHECK (question_type IN ('single', 'multi'));
 
 ALTER TABLE questions DROP CONSTRAINT IF EXISTS questions_correct_answer_check;
+
+
+
+CREATE INDEX idx_quiz_results_user_quiz ON quiz_results(user_id, quiz_id);
+CREATE INDEX idx_user_responses_user_question ON user_responses(user_id, question_id);
+
+DROP TABLE quiz_results CASCADE;
+
 
 -------------------------------------------------------------------------------------------------------------------------------------------
 ALTER TABLE questions
