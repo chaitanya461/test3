@@ -96,9 +96,7 @@ CREATE INDEX idx_user_responses_user_question ON user_responses(user_id, questio
 ALTER TABLE quiz_results ADD COLUMN completion_time TIMESTAMP;
 COMMENT ON COLUMN quiz_results.completion_time IS 'When the quiz was completed';
 
-DROP TABLE quiz_results CASCADE;
-
-
+ALTER TABLE quizzes ADD COLUMN time_limit INT DEFAULT 30;
 -------------------------------------------------------------------------------------------------------------------------------------------
 ALTER TABLE questions
 ADD CONSTRAINT questions_correct_answer_check 
