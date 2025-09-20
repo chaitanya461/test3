@@ -63,27 +63,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+// Get filter parameters
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$quiz_filter = isset($_GET['quiz_filter']) ? intval($_GET['quiz_filter']) : 0;
+
+// Build WHERE clause for filtering
+$where_conditions = [];
+$params = [];
+
+if (!empty($search)) {
+    $where_conditions[] = "(q.question_text LIKE ? OR q.option_a LIKE ? OR q.option_b LIKE ? OR q.option_c LIKE ? OR q.option_d LIKE ?)";
+    $search_term = "%$search%";
+    $params = array_merge($params, [$search_term, $search_term, $search_term, $search_term, $search_term]);
+}
+
+if ($quiz_filter > 0) {
+    $where_conditions[] = "q.quiz_id = ?";
+    $params[] = $quiz_filter;
+}
+
+$where_clause = '';
+if (!empty($where_conditions)) {
+    $where_clause = 'WHERE ' . implode(' AND ', $where_conditions);
+}
+
 // Pagination setup
 $per_page = 10;
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $per_page;
 
-// Get total count of questions
-$total_questions = $pdo->query("SELECT COUNT(*) FROM questions")->fetchColumn();
+// Get total count of questions with filters
+$count_query = "SELECT COUNT(*) FROM questions q $where_clause";
+$count_stmt = $pdo->prepare($count_query);
+$count_stmt->execute($params);
+$total_questions = $count_stmt->fetchColumn();
 $total_pages = ceil($total_questions / $per_page);
 
 // Get questions with quiz information (paginated)
-$questions = $pdo->prepare("
+$query = "
     SELECT q.*, qz.title as quiz_title 
     FROM questions q
     JOIN quizzes qz ON q.quiz_id = qz.quiz_id
+    $where_clause
     ORDER BY q.question_id DESC
     LIMIT ? OFFSET ?
-");
-$questions->bindValue(1, $per_page, PDO::PARAM_INT);
-$questions->bindValue(2, $offset, PDO::PARAM_INT);
-$questions->execute();
-$questions = $questions->fetchAll(PDO::FETCH_ASSOC);
+";
+
+$questions_stmt = $pdo->prepare($query);
+
+// Add filter parameters if any
+$param_index = 0;
+foreach ($params as $param) {
+    $questions_stmt->bindValue(++$param_index, $param, PDO::PARAM_STR);
+}
+
+// Add pagination parameters
+$questions_stmt->bindValue(++$param_index, $per_page, PDO::PARAM_INT);
+$questions_stmt->bindValue(++$param_index, $offset, PDO::PARAM_INT);
+
+$questions_stmt->execute();
+$questions = $questions_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get all quizzes for filter dropdown
+$quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fetchAll();
 ?>
 
 <!DOCTYPE html>
@@ -258,12 +300,14 @@ $questions = $questions->fetchAll(PDO::FETCH_ASSOC);
             margin-bottom: 20px;
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
         
         .search-filter input, .search-filter select {
             padding: 8px 12px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            min-width: 200px;
         }
         
         .search-filter button {
@@ -273,6 +317,15 @@ $questions = $questions->fetchAll(PDO::FETCH_ASSOC);
             border: none;
             border-radius: 4px;
             cursor: pointer;
+        }
+        
+        .clear-filters {
+            padding: 8px 15px;
+            background-color: #95a5a6;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            display: inline-block;
         }
     </style>
 </head>
@@ -317,19 +370,44 @@ $questions = $questions->fetchAll(PDO::FETCH_ASSOC);
                 
                 <!-- Search and Filter Form -->
                 <form method="get" class="search-filter">
-                    <input type="text" name="search" placeholder="Search questions..." value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>">
+                    <input type="text" name="search" placeholder="Search questions..." value="<?php echo htmlspecialchars($search); ?>">
                     <select name="quiz_filter">
                         <option value="">All Quizzes</option>
-                        <?php
-                        $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fetchAll();
-                        foreach ($quizzes as $quiz) {
-                            $selected = ($_GET['quiz_filter'] ?? '') == $quiz['quiz_id'] ? 'selected' : '';
-                            echo "<option value='{$quiz['quiz_id']}' $selected>{$quiz['title']}</option>";
-                        }
-                        ?>
+                        <?php foreach ($quizzes as $quiz): ?>
+                            <option value="<?php echo $quiz['quiz_id']; ?>" <?php echo $quiz_filter == $quiz['quiz_id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($quiz['title']); ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                     <button type="submit">Filter</button>
+                    
+                    <?php if (!empty($search) || $quiz_filter > 0): ?>
+                        <a href="manage_questions.php" class="clear-filters">Clear Filters</a>
+                    <?php endif; ?>
                 </form>
+                
+                <!-- Display filter status -->
+                <?php if (!empty($search) || $quiz_filter > 0): ?>
+                    <div class="message">
+                        <strong>Filter Applied:</strong>
+                        <?php if (!empty($search)): ?>
+                            Search: "<?php echo htmlspecialchars($search); ?>"
+                        <?php endif; ?>
+                        <?php if ($quiz_filter > 0): ?>
+                            <?php 
+                            $quiz_title = '';
+                            foreach ($quizzes as $quiz) {
+                                if ($quiz['quiz_id'] == $quiz_filter) {
+                                    $quiz_title = $quiz['title'];
+                                    break;
+                                }
+                            }
+                            ?>
+                            Quiz: "<?php echo htmlspecialchars($quiz_title); ?>"
+                        <?php endif; ?>
+                        (<?php echo $total_questions; ?> results found)
+                    </div>
+                <?php endif; ?>
                 
                 <!-- Bulk Actions -->
                 <form method="post" class="bulk-actions">
@@ -383,10 +461,21 @@ $questions = $questions->fetchAll(PDO::FETCH_ASSOC);
                             </table>
                         </form>
                         
-                        <!-- Pagination -->
+                        <!-- Pagination with filter parameters -->
                         <div class="pagination">
+                            <?php
+                            // Build pagination URL with filters
+                            $pagination_url = "?";
+                            if (!empty($search)) {
+                                $pagination_url .= "search=" . urlencode($search) . "&";
+                            }
+                            if ($quiz_filter > 0) {
+                                $pagination_url .= "quiz_filter=" . $quiz_filter . "&";
+                            }
+                            ?>
+                            
                             <?php if ($page > 1): ?>
-                                <a href="?page=<?php echo $page - 1; ?>">&laquo; Previous</a>
+                                <a href="<?php echo $pagination_url; ?>page=<?php echo $page - 1; ?>">&laquo; Previous</a>
                             <?php endif; ?>
                             
                             <?php 
@@ -394,7 +483,7 @@ $questions = $questions->fetchAll(PDO::FETCH_ASSOC);
                             $end = min($total_pages, $page + 2);
                             
                             if ($start > 1) {
-                                echo '<a href="?page=1">1</a>';
+                                echo '<a href="' . $pagination_url . 'page=1">1</a>';
                                 if ($start > 2) echo '<span>...</span>';
                             }
                             
@@ -402,18 +491,18 @@ $questions = $questions->fetchAll(PDO::FETCH_ASSOC);
                                 if ($i == $page) {
                                     echo '<span class="current">'.$i.'</span>';
                                 } else {
-                                    echo '<a href="?page='.$i.'">'.$i.'</a>';
+                                    echo '<a href="' . $pagination_url . 'page='.$i.'">'.$i.'</a>';
                                 }
                             }
                             
                             if ($end < $total_pages) {
                                 if ($end < $total_pages - 1) echo '<span>...</span>';
-                                echo '<a href="?page='.$total_pages.'">'.$total_pages.'</a>';
+                                echo '<a href="' . $pagination_url . 'page='.$total_pages.'">'.$total_pages.'</a>';
                             }
                             ?>
                             
                             <?php if ($page < $total_pages): ?>
-                                <a href="?page=<?php echo $page + 1; ?>">Next &raquo;</a>
+                                <a href="<?php echo $pagination_url; ?>page=<?php echo $page + 1; ?>">Next &raquo;</a>
                             <?php endif; ?>
                         </div>
                     <?php else: ?>
