@@ -344,11 +344,11 @@ $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fet
             <div class="sidebar">
                 <h3>Admin Menu</h3>
                 <ul>
-                    <li><a href="dashboard.php">Dashboard</a></li>
+                    <li><a href="dashboard.php" class="active">Dashboard</a></li>
                     <li><a href="add_question.php">Add Questions</a></li>
-                    <li><a href="manage_questions.php" class="active">Manage Questions</a></li>
-                    <li><a href="manage_quizzes.php">Manage Quizzes</a></li>
-                    <li><a href="manage_users.php">Manage Users</a></li>
+                    <li><a href="manage_questions.php">Manage Questions</a></li>
+                    <li><a href="admin_reattempt_requests.php">Approve Rreattempt</a></li>
+                    <li><a href="set_quiz_time_limit.php">Set Time Limit</a></li>
                     <li><a href="view_results.php">View Results</a></li>
                 </ul>
             </div>
