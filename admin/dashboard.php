@@ -184,7 +184,7 @@ $recentQuizzes = $pdo->query("
                     <li><a href="add_question.php">Add Questions</a></li>
                     <li><a href="manage_questions.php">Manage Questions</a></li>
                     <li><a href="admin_reattempt_requests.php">Approve Rreattempt</a></li>
-                    <li><a href="#">Manage Users</a></li>
+                    <li><a href="set_quiz_time_limit.php">Set Time Limit</a></li>
                     <li><a href="view_results.php">View Results</a></li>
                 </ul>
             </div>
