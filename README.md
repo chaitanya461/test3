@@ -100,6 +100,12 @@ COMMENT ON COLUMN quiz_results.completion_time IS 'When the quiz was completed';
 
 ALTER TABLE quizzes ADD COLUMN time_limit INT DEFAULT 30;
 -------------------------------------------------------------------------------------------------------------------------------------------
+# Run it once (access via browser or command line)
+php /var/www/html/create_admin.php
+
+# Then delete it for security
+rm /var/www/html/create_admin.php
+
 
 DROP TABLE questions CASCADE;
 
