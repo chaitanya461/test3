@@ -33,13 +33,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $option_b = trim($_POST['option_b']);
     $option_c = trim($_POST['option_c']);
     $option_d = trim($_POST['option_d']);
-    $correct_answer = strtolower(trim($_POST['correct_answer']));
+    $question_type = $_POST['question_type'];
     
-    // Validate correct answer is a-d
-    if (!in_array($correct_answer, ['a', 'b', 'c', 'd'])) {
-        $_SESSION['error'] = "Correct answer must be A, B, C, or D";
-        header("Location: edit_question.php?id=$question_id");
-        exit;
+    // Handle correct answers based on question type
+    if ($question_type === 'single') {
+        $correct_answer = strtolower(trim($_POST['correct_answer_single']));
+        // Validate correct answer is a-d
+        if (!in_array($correct_answer, ['a', 'b', 'c', 'd'])) {
+            $_SESSION['error'] = "Correct answer must be A, B, C, or D";
+            header("Location: edit_question.php?id=$question_id");
+            exit;
+        }
+    } else {
+        // For multi-select questions, get array of correct answers
+        $correct_answers = isset($_POST['correct_answer_multi']) ? $_POST['correct_answer_multi'] : [];
+        if (empty($correct_answers)) {
+            $_SESSION['error'] = "Please select at least one correct answer";
+            header("Location: edit_question.php?id=$question_id");
+            exit;
+        }
+        // Convert array to comma-separated string (e.g., "a,c")
+        $correct_answer = implode(',', $correct_answers);
     }
     
     try {
@@ -51,7 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 option_b = ?, 
                 option_c = ?, 
                 option_d = ?, 
-                correct_answer = ?
+                correct_answer = ?,
+                question_type = ?
             WHERE question_id = ?
         ");
         $stmt->execute([
@@ -62,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $option_c,
             $option_d,
             $correct_answer,
+            $question_type,
             $question_id
         ]);
         
@@ -77,6 +93,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch all quizzes for dropdown
 $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fetchAll();
+
+// Parse correct answers for multi-select questions
+$correct_answers = [];
+if ($question['question_type'] === 'multi') {
+    $correct_answers = explode(',', $question['correct_answer']);
+}
 ?>
 
 <!DOCTYPE html>
@@ -195,6 +217,37 @@ $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fet
             width: 20px;
         }
         
+        .correct-answer-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .correct-answer-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        
         .form-actions {
             display: flex;
             justify-content: flex-end;
@@ -255,6 +308,36 @@ $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fet
         .btn-logout:hover {
             background-color: #95a5a6;
         }
+        
+        .question-type-selector {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .type-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .type-option input[type="radio"] {
+            margin: 0;
+        }
+        
+        .type-option.selected {
+            border-color: #3498db;
+            background-color: #e8f4fd;
+        }
+        
+        .type-option:hover {
+            border-color: #3498db;
+        }
     </style>
 </head>
 <body>
@@ -311,6 +394,22 @@ $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fet
                         </div>
                         
                         <div class="form-group">
+                            <label>Question Type</label>
+                            <div class="question-type-selector">
+                                <label class="type-option <?php echo $question['question_type'] === 'single' ? 'selected' : ''; ?>">
+                                    <input type="radio" name="question_type" value="single" 
+                                        <?php echo $question['question_type'] === 'single' ? 'checked' : ''; ?>>
+                                    Single Choice
+                                </label>
+                                <label class="type-option <?php echo $question['question_type'] === 'multi' ? 'selected' : ''; ?>">
+                                    <input type="radio" name="question_type" value="multi" 
+                                        <?php echo $question['question_type'] === 'multi' ? 'checked' : ''; ?>>
+                                    Multiple Choice
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
                             <label for="question_text">Question Text</label>
                             <textarea name="question_text" id="question_text" required><?php echo htmlspecialchars($question['question_text']); ?></textarea>
                         </div>
@@ -337,14 +436,42 @@ $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fet
                             </div>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="correct_answer">Correct Answer</label>
-                            <select name="correct_answer" id="correct_answer" required>
+                        <div class="correct-answer-section" id="single-choice-section" 
+                            style="<?php echo $question['question_type'] === 'multi' ? 'display: none;' : ''; ?>">
+                            <div class="correct-answer-title">Select Correct Answer (Single Choice)</div>
+                            <select name="correct_answer_single" id="correct_answer_single">
                                 <option value="a" <?php echo $question['correct_answer'] == 'a' ? 'selected' : ''; ?>>A</option>
                                 <option value="b" <?php echo $question['correct_answer'] == 'b' ? 'selected' : ''; ?>>B</option>
                                 <option value="c" <?php echo $question['correct_answer'] == 'c' ? 'selected' : ''; ?>>C</option>
                                 <option value="d" <?php echo $question['correct_answer'] == 'd' ? 'selected' : ''; ?>>D</option>
                             </select>
+                        </div>
+                        
+                        <div class="correct-answer-section" id="multi-choice-section" 
+                            style="<?php echo $question['question_type'] === 'single' ? 'display: none;' : ''; ?>">
+                            <div class="correct-answer-title">Select Correct Answers (Multiple Choice)</div>
+                            <div class="checkbox-group">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="correct_answer_multi[]" value="a" 
+                                        <?php echo in_array('a', $correct_answers) ? 'checked' : ''; ?>>
+                                    Option A
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="correct_answer_multi[]" value="b" 
+                                        <?php echo in_array('b', $correct_answers) ? 'checked' : ''; ?>>
+                                    Option B
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="correct_answer_multi[]" value="c" 
+                                        <?php echo in_array('c', $correct_answers) ? 'checked' : ''; ?>>
+                                    Option C
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="correct_answer_multi[]" value="d" 
+                                        <?php echo in_array('d', $correct_answers) ? 'checked' : ''; ?>>
+                                    Option D
+                                </label>
+                            </div>
                         </div>
                         
                         <div class="form-actions">
@@ -360,5 +487,36 @@ $quizzes = $pdo->query("SELECT quiz_id, title FROM quizzes ORDER BY title")->fet
             <p>&copy; <?php echo date('Y'); ?> Quiz Application. All rights reserved.</p>
         </footer>
     </div>
+
+    <script>
+        // Toggle between single and multiple choice interfaces
+        document.querySelectorAll('input[name="question_type"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const singleSection = document.getElementById('single-choice-section');
+                const multiSection = document.getElementById('multi-choice-section');
+                
+                if (this.value === 'single') {
+                    singleSection.style.display = 'block';
+                    multiSection.style.display = 'none';
+                } else {
+                    singleSection.style.display = 'none';
+                    multiSection.style.display = 'block';
+                }
+                
+                // Update visual selection
+                document.querySelectorAll('.type-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+                this.parentElement.classList.add('selected');
+            });
+        });
+        
+        // Initialize visual selection on page load
+        document.querySelectorAll('.type-option').forEach(option => {
+            if (option.querySelector('input[type="radio"]').checked) {
+                option.classList.add('selected');
+            }
+        });
+    </script>
 </body>
 </html>
