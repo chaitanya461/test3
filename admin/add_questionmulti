@@ -50,7 +50,8 @@ $formData = [
     'correct_answer_a' => false,
     'correct_answer_b' => false,
     'correct_answer_c' => false,
-    'correct_answer_d' => false
+    'correct_answer_d' => false,
+    'true_false_answer' => 'true'
 ];
 
 // Process form submission
@@ -82,48 +83,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $quiz_id = (int)$_POST['quiz_id'];
         }
 
-        // Validate question data
-        $required_fields = [
-            'question_text' => 'Question text is required',
-            'option_a' => 'Option A is required',
-            'option_b' => 'Option B is required',
-            'option_c' => 'Option C is required',
-            'option_d' => 'Option D is required'
-        ];
+        // Validate question data based on question type
+        $question_text = trim(htmlspecialchars($_POST['question_text']));
+        $points = max(1, (int)($_POST['points'] ?? 1));
+        $question_type = $_POST['question_type'] ?? 'single';
         
-        foreach ($required_fields as $field => $message) {
-            if (empty(trim($_POST[$field] ?? ''))) {
-                throw new Exception($message);
-            }
+        if (empty($question_text)) {
+            throw new Exception('Question text is required');
         }
 
-        $question_text = trim(htmlspecialchars($_POST['question_text']));
-        $option_a = trim(htmlspecialchars($_POST['option_a']));
-        $option_b = trim(htmlspecialchars($_POST['option_b']));
-        $option_c = trim(htmlspecialchars($_POST['option_c']));
-        $option_d = trim(htmlspecialchars($_POST['option_d']));
-        $points = max(1, (int)($_POST['points'] ?? 1));
-        $question_type = ($_POST['question_type'] ?? 'single') === 'multi' ? 'multi' : 'single';
-        
-        // Handle correct answers
-        if ($question_type === 'single') {
-            if (!isset($_POST['correct_answer']) || !in_array($_POST['correct_answer'], ['a', 'b', 'c', 'd'])) {
-                throw new Exception('Please select one correct answer');
+        // Handle different question types
+        if ($question_type === 'true_false') {
+            // True/False question
+            if (!isset($_POST['true_false_answer']) || !in_array($_POST['true_false_answer'], ['true', 'false'])) {
+                throw new Exception('Please select true or false for the correct answer');
             }
-            $correct_answer = $_POST['correct_answer'];
+            $correct_answer = $_POST['true_false_answer'];
+            $option_a = $option_b = $option_c = $option_d = null; // Options are null for true/false
         } else {
-            $correct_answers = [];
-            foreach (['a', 'b', 'c', 'd'] as $option) {
-                if (isset($_POST['correct_answer_'.$option]) && $_POST['correct_answer_'.$option] === 'on') {
-                    $correct_answers[] = $option;
-                    $formData['correct_answer_'.$option] = true;
+            // Multiple choice questions (single or multi)
+            $required_fields = [
+                'option_a' => 'Option A is required',
+                'option_b' => 'Option B is required'
+            ];
+            
+            foreach ($required_fields as $field => $message) {
+                if (empty(trim($_POST[$field] ?? ''))) {
+                    throw new Exception($message);
                 }
             }
-            if (empty($correct_answers)) {
-                throw new Exception('Please select at least one correct answer');
+
+            $option_a = trim(htmlspecialchars($_POST['option_a']));
+            $option_b = trim(htmlspecialchars($_POST['option_b']));
+            $option_c = !empty(trim($_POST['option_c'] ?? '')) ? trim(htmlspecialchars($_POST['option_c'])) : null;
+            $option_d = !empty(trim($_POST['option_d'] ?? '')) ? trim(htmlspecialchars($_POST['option_d'])) : null;
+
+            // Handle correct answers for multiple choice
+            if ($question_type === 'single') {
+                if (!isset($_POST['correct_answer']) || !in_array($_POST['correct_answer'], ['a', 'b', 'c', 'd'])) {
+                    throw new Exception('Please select one correct answer');
+                }
+                $correct_answer = $_POST['correct_answer'];
+            } else {
+                $correct_answers = [];
+                foreach (['a', 'b', 'c', 'd'] as $option) {
+                    if (isset($_POST['correct_answer_'.$option]) && $_POST['correct_answer_'.$option] === 'on') {
+                        $correct_answers[] = $option;
+                        $formData['correct_answer_'.$option] = true;
+                    }
+                }
+                if (empty($correct_answers)) {
+                    throw new Exception('Please select at least one correct answer');
+                }
+                sort($correct_answers);
+                $correct_answer = implode(',', $correct_answers);
             }
-            sort($correct_answers);
-            $correct_answer = implode(',', $correct_answers);
         }
 
         // Insert question
@@ -161,7 +175,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'correct_answer_a' => false,
             'correct_answer_b' => false,
             'correct_answer_c' => false,
-            'correct_answer_d' => false
+            'correct_answer_d' => false,
+            'true_false_answer' => 'true'
         ];
         
     } catch (PDOException $e) {
@@ -226,15 +241,59 @@ try {
         .correct-answer-checkbox {
             margin-top: 5px;
         }
-        .single-answer-section, .multi-answer-section {
+        .single-answer-section, .multi-answer-section, .true-false-section {
             display: none;
         }
-        .single-answer-section.active, .multi-answer-section.active {
+        .single-answer-section.active, .multi-answer-section.active, .true-false-section.active {
             display: block;
+        }
+        .true-false-options {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .true-false-option {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .true-false-option.true-option:hover {
+            background-color: #e8f5e8;
+            border-color: #4caf50;
+        }
+        .true-false-option.false-option:hover {
+            background-color: #ffe8e8;
+            border-color: #f44336;
+        }
+        .true-false-option.selected.true-option {
+            background-color: #4caf50;
+            color: white;
+            border-color: #4caf50;
+        }
+        .true-false-option.selected.false-option {
+            background-color: #f44336;
+            color: white;
+            border-color: #f44336;
+        }
+        .true-false-input {
+            display: none;
+        }
+        .options-section {
+            margin-top: 15px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
         }
         @media (max-width: 768px) {
             .options-grid {
                 grid-template-columns: 1fr;
+            }
+            .true-false-options {
+                flex-direction: column;
             }
         }
         .alert {
@@ -394,93 +453,127 @@ try {
                         <?= $formData['question_type'] === 'multi' ? 'checked' : '' ?>>
                     <label class="form-check-label" for="multi_answer">Multiple Answers</label>
                 </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="question_type" id="true_false" value="true_false"
+                        <?= $formData['question_type'] === 'true_false' ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="true_false">True/False</label>
+                </div>
             </div>
             
-            <div class="options-grid">
+            <!-- True/False Section -->
+            <div class="true-false-section <?= $formData['question_type'] === 'true_false' ? 'active' : '' ?>">
                 <div class="form-group">
-                    <label for="option_a">Option A:</label>
-                    <input type="text" id="option_a" name="option_a" class="form-control" required
-                        value="<?= htmlspecialchars($formData['option_a']) ?>">
-                    <div class="invalid-feedback">Please enter option A</div>
-                    
-                    <div class="single-answer-section <?= $formData['question_type'] === 'single' ? 'active' : '' ?>">
-                        <div class="form-check correct-answer-checkbox">
-                            <input class="form-check-input" type="radio" name="correct_answer" id="correct_answer_a" value="a"
-                                <?= $formData['correct_answer'] === 'a' ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="correct_answer_a">Correct Answer</label>
-                        </div>
+                    <label>Correct Answer:</label>
+                    <div class="true-false-options">
+                        <input type="radio" name="true_false_answer" id="true_answer" value="true" 
+                            class="true-false-input" 
+                            <?= $formData['true_false_answer'] === 'true' ? 'checked' : '' ?>>
+                        <label for="true_answer" class="true-false-option true-option <?= $formData['true_false_answer'] === 'true' ? 'selected' : '' ?>">
+                            True
+                        </label>
+                        
+                        <input type="radio" name="true_false_answer" id="false_answer" value="false" 
+                            class="true-false-input"
+                            <?= $formData['true_false_answer'] === 'false' ? 'checked' : '' ?>>
+                        <label for="false_answer" class="true-false-option false-option <?= $formData['true_false_answer'] === 'false' ? 'selected' : '' ?>">
+                            False
+                        </label>
                     </div>
-                    <div class="multi-answer-section <?= $formData['question_type'] === 'multi' ? 'active' : '' ?>">
-                        <div class="form-check correct-answer-checkbox">
-                            <input class="form-check-input" type="checkbox" name="correct_answer_a" id="multi_correct_a"
-                                <?= $formData['correct_answer_a'] ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="multi_correct_a">Correct Answer</label>
-                        </div>
-                    </div>
+                    <div class="invalid-feedback">Please select true or false</div>
                 </div>
-                
-                <div class="form-group">
-                    <label for="option_b">Option B:</label>
-                    <input type="text" id="option_b" name="option_b" class="form-control" required
-                        value="<?= htmlspecialchars($formData['option_b']) ?>">
-                    <div class="invalid-feedback">Please enter option B</div>
+            </div>
+            
+            <!-- Multiple Choice Options Section -->
+            <div class="options-section" id="multiple_choice_section" 
+                style="<?= $formData['question_type'] === 'true_false' ? 'display:none;' : '' ?>">
+                <div class="options-grid">
+                    <div class="form-group">
+                        <label for="option_a">Option A:</label>
+                        <input type="text" id="option_a" name="option_a" class="form-control" 
+                            value="<?= htmlspecialchars($formData['option_a']) ?>"
+                            <?= $formData['question_type'] === 'true_false' ? '' : 'required' ?>>
+                        <div class="invalid-feedback">Please enter option A</div>
+                        
+                        <div class="single-answer-section <?= $formData['question_type'] === 'single' ? 'active' : '' ?>">
+                            <div class="form-check correct-answer-checkbox">
+                                <input class="form-check-input" type="radio" name="correct_answer" id="correct_answer_a" value="a"
+                                    <?= $formData['correct_answer'] === 'a' ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="correct_answer_a">Correct Answer</label>
+                            </div>
+                        </div>
+                        <div class="multi-answer-section <?= $formData['question_type'] === 'multi' ? 'active' : '' ?>">
+                            <div class="form-check correct-answer-checkbox">
+                                <input class="form-check-input" type="checkbox" name="correct_answer_a" id="multi_correct_a"
+                                    <?= $formData['correct_answer_a'] ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="multi_correct_a">Correct Answer</label>
+                            </div>
+                        </div>
+                    </div>
                     
-                    <div class="single-answer-section <?= $formData['question_type'] === 'single' ? 'active' : '' ?>">
-                        <div class="form-check correct-answer-checkbox">
-                            <input class="form-check-input" type="radio" name="correct_answer" id="correct_answer_b" value="b"
-                                <?= $formData['correct_answer'] === 'b' ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="correct_answer_b">Correct Answer</label>
+                    <div class="form-group">
+                        <label for="option_b">Option B:</label>
+                        <input type="text" id="option_b" name="option_b" class="form-control" 
+                            value="<?= htmlspecialchars($formData['option_b']) ?>"
+                            <?= $formData['question_type'] === 'true_false' ? '' : 'required' ?>>
+                        <div class="invalid-feedback">Please enter option B</div>
+                        
+                        <div class="single-answer-section <?= $formData['question_type'] === 'single' ? 'active' : '' ?>">
+                            <div class="form-check correct-answer-checkbox">
+                                <input class="form-check-input" type="radio" name="correct_answer" id="correct_answer_b" value="b"
+                                    <?= $formData['correct_answer'] === 'b' ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="correct_answer_b">Correct Answer</label>
+                            </div>
+                        </div>
+                        <div class="multi-answer-section <?= $formData['question_type'] === 'multi' ? 'active' : '' ?>">
+                            <div class="form-check correct-answer-checkbox">
+                                <input class="form-check-input" type="checkbox" name="correct_answer_b" id="multi_correct_b"
+                                    <?= $formData['correct_answer_b'] ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="multi_correct_b">Correct Answer</label>
+                            </div>
                         </div>
                     </div>
-                    <div class="multi-answer-section <?= $formData['question_type'] === 'multi' ? 'active' : '' ?>">
-                        <div class="form-check correct-answer-checkbox">
-                            <input class="form-check-input" type="checkbox" name="correct_answer_b" id="multi_correct_b"
-                                <?= $formData['correct_answer_b'] ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="multi_correct_b">Correct Answer</label>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="option_c">Option C:</label>
-                    <input type="text" id="option_c" name="option_c" class="form-control" required
-                        value="<?= htmlspecialchars($formData['option_c']) ?>">
-                    <div class="invalid-feedback">Please enter option C</div>
                     
-                    <div class="single-answer-section <?= $formData['question_type'] === 'single' ? 'active' : '' ?>">
-                        <div class="form-check correct-answer-checkbox">
-                            <input class="form-check-input" type="radio" name="correct_answer" id="correct_answer_c" value="c"
-                                <?= $formData['correct_answer'] === 'c' ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="correct_answer_c">Correct Answer</label>
+                    <div class="form-group">
+                        <label for="option_c">Option C:</label>
+                        <input type="text" id="option_c" name="option_c" class="form-control" 
+                            value="<?= htmlspecialchars($formData['option_c']) ?>">
+                        <div class="invalid-feedback">Please enter option C</div>
+                        
+                        <div class="single-answer-section <?= $formData['question_type'] === 'single' ? 'active' : '' ?>">
+                            <div class="form-check correct-answer-checkbox">
+                                <input class="form-check-input" type="radio" name="correct_answer" id="correct_answer_c" value="c"
+                                    <?= $formData['correct_answer'] === 'c' ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="correct_answer_c">Correct Answer</label>
+                            </div>
+                        </div>
+                        <div class="multi-answer-section <?= $formData['question_type'] === 'multi' ? 'active' : '' ?>">
+                            <div class="form-check correct-answer-checkbox">
+                                <input class="form-check-input" type="checkbox" name="correct_answer_c" id="multi_correct_c"
+                                    <?= $formData['correct_answer_c'] ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="multi_correct_c">Correct Answer</label>
+                            </div>
                         </div>
                     </div>
-                    <div class="multi-answer-section <?= $formData['question_type'] === 'multi' ? 'active' : '' ?>">
-                        <div class="form-check correct-answer-checkbox">
-                            <input class="form-check-input" type="checkbox" name="correct_answer_c" id="multi_correct_c"
-                                <?= $formData['correct_answer_c'] ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="multi_correct_c">Correct Answer</label>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="option_d">Option D:</label>
-                    <input type="text" id="option_d" name="option_d" class="form-control" required
-                        value="<?= htmlspecialchars($formData['option_d']) ?>">
-                    <div class="invalid-feedback">Please enter option D</div>
                     
-                    <div class="single-answer-section <?= $formData['question_type'] === 'single' ? 'active' : '' ?>">
-                        <div class="form-check correct-answer-checkbox">
-                            <input class="form-check-input" type="radio" name="correct_answer" id="correct_answer_d" value="d"
-                                <?= $formData['correct_answer'] === 'd' ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="correct_answer_d">Correct Answer</label>
+                    <div class="form-group">
+                        <label for="option_d">Option D:</label>
+                        <input type="text" id="option_d" name="option_d" class="form-control" 
+                            value="<?= htmlspecialchars($formData['option_d']) ?>">
+                        <div class="invalid-feedback">Please enter option D</div>
+                        
+                        <div class="single-answer-section <?= $formData['question_type'] === 'single' ? 'active' : '' ?>">
+                            <div class="form-check correct-answer-checkbox">
+                                <input class="form-check-input" type="radio" name="correct_answer" id="correct_answer_d" value="d"
+                                    <?= $formData['correct_answer'] === 'd' ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="correct_answer_d">Correct Answer</label>
+                            </div>
                         </div>
-                    </div>
-                    <div class="multi-answer-section <?= $formData['question_type'] === 'multi' ? 'active' : '' ?>">
-                        <div class="form-check correct-answer-checkbox">
-                            <input class="form-check-input" type="checkbox" name="correct_answer_d" id="multi_correct_d"
-                                <?= $formData['correct_answer_d'] ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="multi_correct_d">Correct Answer</label>
+                        <div class="multi-answer-section <?= $formData['question_type'] === 'multi' ? 'active' : '' ?>">
+                            <div class="form-check correct-answer-checkbox">
+                                <input class="form-check-input" type="checkbox" name="correct_answer_d" id="multi_correct_d"
+                                    <?= $formData['correct_answer_d'] ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="multi_correct_d">Correct Answer</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -522,22 +615,48 @@ try {
                 }
             });
 
-            // Toggle between single and multi answer questions
+            // Toggle between question types
             $('input[name="question_type"]').change(function() {
-                if ($(this).val() === 'multi') {
-                    $('.single-answer-section').removeClass('active');
-                    $('.multi-answer-section').addClass('active');
-                    $('input[name="correct_answer"]').prop('checked', false);
+                const questionType = $(this).val();
+                
+                // Hide all sections first
+                $('.single-answer-section, .multi-answer-section, .true-false-section').removeClass('active');
+                $('#multiple_choice_section').hide();
+                $('.true-false-section').hide();
+                
+                // Show appropriate sections
+                if (questionType === 'true_false') {
+                    $('.true-false-section').addClass('active').show();
+                    $('#multiple_choice_section').hide();
+                    // Remove required from multiple choice fields
+                    $('#option_a, #option_b').removeAttr('required');
                 } else {
-                    $('.single-answer-section').addClass('active');
-                    $('.multi-answer-section').removeClass('active');
-                    $('input[name^="correct_answer_"]').prop('checked', false);
+                    $('#multiple_choice_section').show();
+                    $('.true-false-section').hide();
+                    // Add required to option A and B
+                    $('#option_a, #option_b').attr('required', 'required');
+                    
+                    if (questionType === 'single') {
+                        $('.single-answer-section').addClass('active');
+                    } else {
+                        $('.multi-answer-section').addClass('active');
+                    }
                 }
+            });
+
+            // True/False option selection styling
+            $('.true-false-option').click(function() {
+                const inputId = $(this).attr('for');
+                $('#' + inputId).prop('checked', true);
+                $('.true-false-option').removeClass('selected');
+                $(this).addClass('selected');
             });
 
             // Form validation
             $('.quiz-form').on('submit', function(e) {
                 let isValid = true;
+                
+                // Basic required field validation
                 $(this).find('[required]').each(function() {
                     if (!$(this).val()) {
                         $(this).addClass('is-invalid');
@@ -547,21 +666,43 @@ try {
                     }
                 });
                 
-                // Validate at least one correct answer is selected
+                // Validate correct answer based on question type
                 const questionType = $('input[name="question_type"]:checked').val();
-                if (questionType === 'single') {
-                    if (!$('input[name="correct_answer"]:checked').length) {
-                        $('.single-answer-section').addClass('is-invalid');
+                
+                if (questionType === 'true_false') {
+                    if (!$('input[name="true_false_answer"]:checked').length) {
+                        $('.true-false-section').addClass('is-invalid');
                         isValid = false;
                     } else {
-                        $('.single-answer-section').removeClass('is-invalid');
+                        $('.true-false-section').removeClass('is-invalid');
+                    // For true/false, only require option A and B if they have values
+                    if ($('#option_a').val() || $('#option_b').val() || $('#option_c').val() || $('#option_d').val()) {
+                        $('#option_a, #option_b').addClass('is-invalid');
+                        isValid = false;
                     }
                 } else {
-                    if (!$('input[type="checkbox"][name^="correct_answer_"]:checked').length) {
-                        $('.multi-answer-section').addClass('is-invalid');
+                    $('.true-false-section').removeClass('is-invalid');
+                    
+                    // For multiple choice, validate options
+                    if (!$('#option_a').val() || !$('#option_b').val()) {
+                        $('#option_a, #option_b').addClass('is-invalid');
                         isValid = false;
+                    }
+                    
+                    if (questionType === 'single') {
+                        if (!$('input[name="correct_answer"]:checked').length) {
+                            $('.single-answer-section').addClass('is-invalid');
+                            isValid = false;
+                        } else {
+                            $('.single-answer-section').removeClass('is-invalid');
+                        }
                     } else {
-                        $('.multi-answer-section').removeClass('is-invalid');
+                        if (!$('input[type="checkbox"][name^="correct_answer_"]:checked').length) {
+                            $('.multi-answer-section').addClass('is-invalid');
+                            isValid = false;
+                        } else {
+                            $('.multi-answer-section').removeClass('is-invalid');
+                        }
                     }
                 }
                 
@@ -576,10 +717,23 @@ try {
             });
 
             // Initialize form state based on current values
-            if ($('input[name="question_type"]:checked').val() === 'multi') {
-                $('.single-answer-section').removeClass('active');
-                $('.multi-answer-section').addClass('active');
+            const currentQuestionType = $('input[name="question_type"]:checked').val();
+            if (currentQuestionType === 'true_false') {
+                $('.true-false-section').addClass('active').show();
+                $('#multiple_choice_section').hide();
+            } else {
+                $('#multiple_choice_section').show();
+                if (currentQuestionType === 'single') {
+                    $('.single-answer-section').addClass('active');
+                } else {
+                    $('.multi-answer-section').addClass('active');
+                }
             }
+            
+            // Initialize true/false selection styling
+            $('input[name="true_false_answer"]:checked').each(function() {
+                $('label[for="' + $(this).attr('id') + '"]').addClass('selected');
+            });
         });
     </script>
 </body>
