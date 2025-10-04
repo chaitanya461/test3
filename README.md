@@ -111,7 +111,42 @@ DROP TABLE questions CASCADE;
 
 
 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------     (not needed)
+-------------------------------------------------------------------------------------------------------------------------
+                         
+                               update for true or false 
+
+    CREATE TABLE questions (
+    question_id SERIAL PRIMARY KEY,
+    quiz_id INT REFERENCES quizzes(quiz_id),
+    question_text TEXT NOT NULL,
+    option_a VARCHAR(255),  -- Now nullable for true/false questions
+    option_b VARCHAR(255),  -- Now nullable for true/false questions
+    option_c VARCHAR(255),  -- Now nullable for true/false questions
+    option_d VARCHAR(255),  -- Now nullable for true/false questions
+    correct_answer VARCHAR(10) NOT NULL,
+    question_type VARCHAR(20) NOT NULL DEFAULT 'single' 
+        CHECK (question_type IN ('single', 'multi', 'true_false')),
+    points INT DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Additional constraint for correct_answer validation
+    CONSTRAINT valid_correct_answer CHECK (
+        (question_type IN ('single', 'multi') AND correct_answer ~ '^[a-d](,[a-d])*$') OR
+        (question_type = 'true_false' AND correct_answer IN ('true', 'false'))
+    )
+);
+
+CREATE TABLE user_responses (
+    response_id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(user_id),
+    question_id INT REFERENCES questions(question_id),
+    selected_answer VARCHAR(10) 
+        CHECK (selected_answer IS NULL OR selected_answer IN ('a', 'b', 'c', 'd', 'true', 'false')),
+    is_correct BOOLEAN,
+    responded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------     (not needed)
 
 
 CREATE TABLE IF NOT EXISTS questions (
