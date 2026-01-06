@@ -77,7 +77,7 @@ INSERT INTO users (username, email, password_hash, is_admin)
 VALUES ('admin', 'admin@example.com', '$2y$12$no5q4DPdA26jXMsj26cXs.MC9OrD.LDMsHUoQvHkNvIah9B2NE0HG', TRUE);
 
 
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- (needed)
+---------------------------------------------------------------------------------------- (needed)
 ALTER TABLE user_responses 
 ALTER COLUMN selected_answer TYPE VARCHAR(10),
 DROP CONSTRAINT IF EXISTS user_responses_selected_answer_check;
@@ -99,7 +99,7 @@ ALTER TABLE quiz_results ADD COLUMN completion_time TIMESTAMP;
 COMMENT ON COLUMN quiz_results.completion_time IS 'When the quiz was completed';
 
 ALTER TABLE quizzes ADD COLUMN time_limit INT DEFAULT 30;
--------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------
 # Run it once (access via browser or command line)
 php /var/www/html/create_admin.php
 
@@ -146,7 +146,8 @@ CREATE TABLE user_responses (
     responded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------     (not needed)
+------------------------------------------------------------------
+-------------------------------------------------------------------     (not needed)
 
 
 CREATE TABLE IF NOT EXISTS questions (
