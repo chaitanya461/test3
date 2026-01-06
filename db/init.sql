@@ -72,13 +72,6 @@ CREATE TABLE quiz_reattempt_requests (
     FOREIGN KEY (admin_id) REFERENCES users(user_id)
 );
 
-
--- Create an admin user (password: admin123 - change this in production)
-INSERT INTO users (username, email, password_hash, is_admin)
-VALUES ('admin', 'admin@example.com', '$2y$12$no5q4DPdA26jXMsj26cXs.MC9OrD.LDMsHUoQvHkNvIah9B2NE0HG', TRUE);
-
-
----------------------------------------------------------------------------------------- (needed)
 ALTER TABLE user_responses 
 ALTER COLUMN selected_answer TYPE VARCHAR(10),
 DROP CONSTRAINT IF EXISTS user_responses_selected_answer_check;
