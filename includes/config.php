@@ -1,10 +1,10 @@
 <?php
 // Database connection configuration for RDS PostgreSQL
-define('DB_HOST', 'your-rds-endpoint.rds.amazonaws.com');
+define('DB_HOST', getenv("DB_HOST"));
 define('DB_PORT', '5432');
-define('DB_NAME', 'your_database_name');
-define('DB_USER', 'your_db_username');
-define('DB_PASS', 'your_db_password');
+define('DB_NAME', getenv("DB_NAME"));
+define('DB_USER', getenv("DB_USER"));
+define('DB_PASS', getenv("DB_PASS"));
 
 // Connect to PostgreSQL
 try {
