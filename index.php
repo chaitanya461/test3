@@ -1,6 +1,11 @@
 <?php
 require_once 'includes/config.php';
 require_once 'includes/auth_functions.php';
+
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 ?>
 
 <!DOCTYPE html>
@@ -17,7 +22,11 @@ require_once 'includes/auth_functions.php';
             <h1>Welcome to Quiz Application</h1>
             <div class="auth-links">
                 <?php if (isLoggedIn()): ?>
-                    <span>Hello, <?php echo htmlspecialchars($_SESSION['username']); ?>!</span>
+                    <span>Hello, <?php 
+                    // FIXED: Added null check before htmlspecialchars
+                    $username = $_SESSION['username'] ?? '';
+                    echo htmlspecialchars($username, ENT_QUOTES, 'UTF-8'); 
+                    ?>!</span>
                     <?php if (isAdmin()): ?>
                         <a href="admin/dashboard.php" class="btn btn-admin">Admin Dashboard</a>
                     <?php endif; ?>
@@ -35,8 +44,13 @@ require_once 'includes/auth_functions.php';
                     <h2>Available Quizzes</h2>
                     
                     <?php
-                    // Fetch active quizzes
-                    $quizzes = $pdo->query("SELECT * FROM quizzes WHERE is_active = TRUE")->fetchAll(PDO::FETCH_ASSOC);
+                    // Fetch active quizzes with error handling
+                    try {
+                        $quizzes = $pdo->query("SELECT * FROM quizzes WHERE is_active = TRUE")->fetchAll(PDO::FETCH_ASSOC);
+                    } catch (PDOException $e) {
+                        $quizzes = [];
+                        error_log("Database error: " . $e->getMessage());
+                    }
                     
                     if (empty($quizzes)): ?>
                         <p>No quizzes available at the moment.</p>
@@ -44,9 +58,9 @@ require_once 'includes/auth_functions.php';
                         <div class="quiz-grid">
                             <?php foreach ($quizzes as $quiz): ?>
                                 <div class="quiz-card">
-                                    <h3><?php echo htmlspecialchars($quiz['title']); ?></h3>
-                                    <p><?php echo htmlspecialchars($quiz['description']); ?></p>
-                                    <a href="quiz/take_quiz.php?quiz_id=<?php echo $quiz['quiz_id']; ?>" class="btn btn-start-quiz">Start Quiz</a>
+                                    <h3><?php echo htmlspecialchars($quiz['title'] ?? '', ENT_QUOTES, 'UTF-8'); ?></h3>
+                                    <p><?php echo htmlspecialchars($quiz['description'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
+                                    <a href="quiz/take_quiz.php?quiz_id=<?php echo htmlspecialchars($quiz['quiz_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-start-quiz">Start Quiz</a>
                                 </div>
                             <?php endforeach; ?>
                         </div>
