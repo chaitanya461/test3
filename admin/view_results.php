@@ -162,6 +162,45 @@ $users = $pdo->query("SELECT user_id, username FROM users ORDER BY username")->f
     <title>View Results | Quiz Application</title>
     <link rel="stylesheet" href="../styles.css">
     <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .user-info {
+            font-size: 14px;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
         .results-container {
             margin-top: 20px;
         }
@@ -292,6 +331,8 @@ $users = $pdo->query("SELECT user_id, username FROM users ORDER BY username")->f
             cursor: pointer;
             font-size: 14px;
             transition: background-color 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
         
         .btn-primary {
@@ -346,118 +387,145 @@ $users = $pdo->query("SELECT user_id, username FROM users ORDER BY username")->f
             gap: 10px;
             margin-bottom: 20px;
         }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 14px;
+            border-top: 1px solid #eee;
+        }
+        
+        .admin-links {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .admin-links a {
+            color: #3498db;
+            text-decoration: none;
+            margin-right: 20px;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        
+        .admin-links a:hover {
+            background-color: #3498db;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <?php include 'admin_header.php'; ?>
-        
-        <div class="dashboard">
-            <?php include 'admin_sidebar.php'; ?>
+                        
+        <div class="main-content">
+            <div class="admin-header">
+                <h2 style="color: #2c3e50; margin-top: 0;">Quiz Results</h2>
+            </div>
             
-            <div class="main-content">
-                <div class="admin-header">
-                    <h2 class="admin-title">Quiz Results</h2>
-                </div>
-                
-                <!-- Action Buttons -->
-                <div class="action-buttons">
-                    <a href="dashboard.php" class="btn btn-back">← Back to Dashboard</a>
-                    <a href="view_results.php?<?php echo http_build_query($_GET); ?>&download=csv" class="btn btn-download">Download Results (CSV)</a>
-                </div>
-                
-                <!-- Filter Form -->
-                <div class="filter-form">
-                    <form method="get" action="view_results.php">
-                        <div class="filter-row">
-                            <div class="filter-group">
-                                <label for="quiz_id">Quiz</label>
-                                <select id="quiz_id" name="quiz_id">
-                                    <option value="">All Quizzes</option>
-                                    <?php foreach ($quizzes as $quiz): ?>
-                                        <option value="<?php echo $quiz['quiz_id']; ?>" <?php echo $quiz_filter == $quiz['quiz_id'] ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($quiz['title']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            
-                            <div class="filter-group">
-                                <label for="user_id">User</label>
-                                <select id="user_id" name="user_id">
-                                    <option value="">All Users</option>
-                                    <?php foreach ($users as $user): ?>
-                                        <option value="<?php echo $user['user_id']; ?>" <?php echo $user_filter == $user['user_id'] ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($user['username']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            
-                            <div class="filter-group">
-                                <label for="date_from">Date From</label>
-                                <input type="date" id="date_from" name="date_from" value="<?php echo htmlspecialchars($date_from); ?>">
-                            </div>
-                            
-                            <div class="filter-group">
-                                <label for="date_to">Date To</label>
-                                <input type="date" id="date_to" name="date_to" value="<?php echo htmlspecialchars($date_to); ?>">
-                            </div>
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="dashboard.php" class="btn btn-back">← Back to Dashboard</a>
+                <a href="view_results.php?<?php echo http_build_query($_GET); ?>&download=csv" class="btn btn-download">Download Results (CSV)</a>
+            </div>
+            
+            <!-- Filter Form -->
+            <div class="filter-form">
+                <form method="get" action="view_results.php">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="quiz_id">Quiz</label>
+                            <select id="quiz_id" name="quiz_id">
+                                <option value="">All Quizzes</option>
+                                <?php foreach ($quizzes as $quiz): ?>
+                                    <option value="<?php echo $quiz['quiz_id']; ?>" <?php echo $quiz_filter == $quiz['quiz_id'] ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($quiz['title']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         
-                        <div class="filter-actions">
-                            <button type="submit" class="btn btn-primary">Apply Filters</button>
-                            <a href="view_results.php" class="btn btn-secondary">Reset Filters</a>
-                        </div>
-                    </form>
-                </div>
-                
-                <!-- Results Table -->
-                <div class="results-container">
-                    <?php if (!empty($results)): ?>
-                        <table class="results-table">
-                            <thead>
-                                <tr>
-                                    <th>User</th>
-                                    <th>Quiz</th>
-                                    <th>Score</th>
-                                    <th>Correct Answers</th>
-                                    <th>Date Completed</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($results as $result): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($result['username']); ?></td>
-                                        <td><?php echo htmlspecialchars($result['title']); ?></td>
-                                        <td class="score-cell 
-                                            <?php 
-                                            if ($result['score'] >= 70) echo 'score-high';
-                                            elseif ($result['score'] >= 40) echo 'score-medium';
-                                            else echo 'score-low';
-                                            ?>">
-                                            <?php echo round($result['score'], 2); ?>%
-                                        </td>
-                                        <td><?php echo $result['correct_answers']; ?>/<?php echo $result['total_questions']; ?></td>
-                                        <td><?php echo date('M j, Y g:i a', strtotime($result['completed_at'])); ?></td>
-                                        <td class="action-cell">
-                                            <a href="result_detail.php?result_id=<?php echo $result['result_id']; ?>" class="btn btn-view">View Details</a>
-                                        </td>
-                                    </tr>
+                        <div class="filter-group">
+                            <label for="user_id">User</label>
+                            <select id="user_id" name="user_id">
+                                <option value="">All Users</option>
+                                <?php foreach ($users as $user): ?>
+                                    <option value="<?php echo $user['user_id']; ?>" <?php echo $user_filter == $user['user_id'] ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($user['username']); ?>
+                                    </option>
                                 <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php else: ?>
-                        <div class="no-results">
-                            <p>No quiz results found matching your criteria.</p>
+                            </select>
                         </div>
-                    <?php endif; ?>
-                </div>
+                        
+                        <div class="filter-group">
+                            <label for="date_from">Date From</label>
+                            <input type="date" id="date_from" name="date_from" value="<?php echo htmlspecialchars($date_from); ?>">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="date_to">Date To</label>
+                            <input type="date" id="date_to" name="date_to" value="<?php echo htmlspecialchars($date_to); ?>">
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                        <a href="view_results.php" class="btn btn-secondary">Reset Filters</a>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Results Table -->
+            <div class="results-container">
+                <?php if (!empty($results)): ?>
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Quiz</th>
+                                <th>Score</th>
+                                <th>Correct Answers</th>
+                                <th>Date Completed</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($results as $result): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($result['username']); ?></td>
+                                    <td><?php echo htmlspecialchars($result['title']); ?></td>
+                                    <td class="score-cell 
+                                        <?php 
+                                        if ($result['score'] >= 70) echo 'score-high';
+                                        elseif ($result['score'] >= 40) echo 'score-medium';
+                                        else echo 'score-low';
+                                        ?>">
+                                        <?php echo round($result['score'], 2); ?>%
+                                    </td>
+                                    <td><?php echo $result['correct_answers']; ?>/<?php echo $result['total_questions']; ?></td>
+                                    <td><?php echo date('M j, Y g:i a', strtotime($result['completed_at'])); ?></td>
+                                    <td class="action-cell">
+                                        <a href="result_detail.php?result_id=<?php echo $result['result_id']; ?>" class="btn btn-view">View Details</a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else: ?>
+                    <div class="no-results">
+                        <p>No quiz results found matching your criteria.</p>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
         
-        <?php include 'admin_footer.php'; ?>
+        <!-- Footer -->
+        <div class="footer">
+            <p>Quiz Application &copy; <?php echo date('Y'); ?> | Admin Panel</p>
+        </div>
     </div>
 </body>
 </html>
