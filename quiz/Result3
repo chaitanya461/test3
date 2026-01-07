@@ -1,0 +1,221 @@
+<?php
+require_once '../includes/config.php';
+require_once '../includes/auth_functions.php';
+
+if (!isLoggedIn()) {
+    header("Location: ../login.php");
+    exit;
+}
+
+$quiz_id = isset($_GET['quiz_id']) ? intval($_GET['quiz_id']) : 0;
+
+// Fetch quiz result for this user
+$result = $pdo->prepare("
+    SELECT qr.*, q.title, qz.question_type
+    FROM quiz_results qr
+    JOIN quizzes q ON qr.quiz_id = q.quiz_id
+    WHERE qr.user_id = ? AND qr.quiz_id = ?
+    ORDER BY qr.completed_at DESC
+    LIMIT 1
+");
+$result->execute([$_SESSION['user_id'], $quiz_id]);
+$result = $result->fetch(PDO::FETCH_ASSOC);
+
+if (!$result) {
+    die("No results found for this quiz.");
+}
+
+// Fetch user responses with question details including question_type
+$responses = $pdo->prepare("
+    SELECT ur.*, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, 
+           q.correct_answer, q.question_type
+    FROM user_responses ur
+    JOIN questions q ON ur.question_id = q.question_id
+    WHERE ur.user_id = ? AND q.quiz_id = ?
+    ORDER BY ur.question_id
+");
+$responses->execute([$_SESSION['user_id'], $quiz_id]);
+$responses = $responses->fetchAll(PDO::FETCH_ASSOC);
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quiz Results: <?php echo htmlspecialchars($result['title']); ?></title>
+    <link rel="stylesheet" href="styles1.css">
+    <style>
+        .question-review {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .question-review.correct {
+            background-color: #dff0d8;
+            border-color: #d6e9c6;
+        }
+        .question-review.incorrect {
+            background-color: #f2dede;
+            border-color: #ebccd1;
+        }
+        .correct-answer {
+            color: #3c763d;
+            font-weight: bold;
+        }
+        .user-answer {
+            color: #31708f;
+        }
+        .answer-option {
+            margin-left: 20px;
+        }
+        .option-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 20px;
+        }
+        .multi-select {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        .true-false-answer {
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Quiz Results: <?php echo htmlspecialchars($result['title']); ?></h1>
+        
+        <div class="result-summary">
+            <h2>Your Score: <?php echo round($result['score'], 2); ?>%</h2>
+            <p>You answered <?php echo $result['correct_answers']; ?> out of <?php echo $result['total_questions']; ?> questions correctly.</p>
+            <p>Completed on: <?php echo date('F j, Y, g:i a', strtotime($result['completed_at'])); ?></p>
+        </div>
+        
+        <h3>Question Review</h3>
+        <?php foreach ($responses as $response): 
+            $is_correct = $response['is_correct'];
+            $question_type = $response['question_type'];
+            $selected_answer = $response['selected_answer'];
+            $correct_answer = $response['correct_answer'];
+        ?>
+            <div class="question-review <?php echo $is_correct ? 'correct' : 'incorrect'; ?>">
+                <p><strong>Question:</strong> <?php echo htmlspecialchars($response['question_text']); ?></p>
+                
+                <?php if ($question_type === 'true_false'): ?>
+                    <!-- True/False Question Display -->
+                    <div class="true-false-answer">
+                        <p><strong>Your Answer:</strong> 
+                            <?php 
+                            if ($selected_answer == 'a') {
+                                echo "True";
+                            } else {
+                                echo "False";
+                            }
+                            echo $is_correct ? " (Correct ✓)" : " (Incorrect ✗)";
+                            ?>
+                        </p>
+                        <?php if (!$is_correct): ?>
+                            <p><strong>Correct Answer:</strong> 
+                                <?php echo ($correct_answer == 'a') ? "True" : "False"; ?>
+                            </p>
+                        <?php endif; ?>
+                    </div>
+                    
+                <?php elseif ($question_type === 'multi'): ?>
+                    <!-- Multiple Choice Question (Multiple Answers) Display -->
+                    <div class="multi-select">
+                        <p><strong>Options:</strong></p>
+                        <div class="answer-option">
+                            <span class="option-label">A:</span> <?php echo htmlspecialchars($response['option_a']); ?>
+                            <?php if (strpos($selected_answer, 'a') !== false): ?>
+                                <span class="user-answer">← Your choice</span>
+                            <?php endif; ?>
+                            <?php if (strpos($correct_answer, 'a') !== false): ?>
+                                <span class="correct-answer">← Correct answer</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="answer-option">
+                            <span class="option-label">B:</span> <?php echo htmlspecialchars($response['option_b']); ?>
+                            <?php if (strpos($selected_answer, 'b') !== false): ?>
+                                <span class="user-answer">← Your choice</span>
+                            <?php endif; ?>
+                            <?php if (strpos($correct_answer, 'b') !== false): ?>
+                                <span class="correct-answer">← Correct answer</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="answer-option">
+                            <span class="option-label">C:</span> <?php echo htmlspecialchars($response['option_c']); ?>
+                            <?php if (strpos($selected_answer, 'c') !== false): ?>
+                                <span class="user-answer">← Your choice</span>
+                            <?php endif; ?>
+                            <?php if (strpos($correct_answer, 'c') !== false): ?>
+                                <span class="correct-answer">← Correct answer</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="answer-option">
+                            <span class="option-label">D:</span> <?php echo htmlspecialchars($response['option_d']); ?>
+                            <?php if (strpos($selected_answer, 'd') !== false): ?>
+                                <span class="user-answer">← Your choice</span>
+                            <?php endif; ?>
+                            <?php if (strpos($correct_answer, 'd') !== false): ?>
+                                <span class="correct-answer">← Correct answer</span>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <?php if (!$is_correct): ?>
+                            <p class="correct-answer">
+                                <strong>Note:</strong> For multiple choice questions, all correct options must be selected.
+                                You selected: <?php echo strtoupper($selected_answer); ?><br>
+                                Correct answers: <?php echo strtoupper($correct_answer); ?>
+                            </p>
+                        <?php else: ?>
+                            <p class="correct-answer">✓ You selected all correct answers!</p>
+                        <?php endif; ?>
+                    </div>
+                    
+                <?php else: ?>
+                    <!-- Single Choice Question Display -->
+                    <div class="single-choice">
+                        <p><strong>Your Answer:</strong> 
+                            <?php 
+                            $selected_option = 'option_' . $selected_answer;
+                            echo htmlspecialchars($response[$selected_option]);
+                            echo $is_correct ? " (Correct ✓)" : " (Incorrect ✗)";
+                            ?>
+                        </p>
+                        <?php if (!$is_correct): ?>
+                            <p><strong>Correct Answer:</strong> 
+                                <?php 
+                                $correct_option = 'option_' . $correct_answer;
+                                echo htmlspecialchars($response[$correct_option]);
+                                ?>
+                            </p>
+                        <?php endif; ?>
+                        
+                        <p><strong>All Options:</strong></p>
+                        <div class="answer-option">
+                            <span class="option-label">A:</span> <?php echo htmlspecialchars($response['option_a']); ?>
+                        </div>
+                        <div class="answer-option">
+                            <span class="option-label">B:</span> <?php echo htmlspecialchars($response['option_b']); ?>
+                        </div>
+                        <div class="answer-option">
+                            <span class="option-label">C:</span> <?php echo htmlspecialchars($response['option_c']); ?>
+                        </div>
+                        <div class="answer-option">
+                            <span class="option-label">D:</span> <?php echo htmlspecialchars($response['option_d']); ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+        
+        <p><a href="../index.php">Back to Home</a></p>
+    </div>
+</body>
+</html>
