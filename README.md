@@ -122,24 +122,32 @@ DROP TABLE questions CASCADE;
                          
                                update for true or false 
 
-    CREATE TABLE questions (
+CREATE TABLE questions (
     question_id SERIAL PRIMARY KEY,
     quiz_id INT REFERENCES quizzes(quiz_id),
     question_text TEXT NOT NULL,
-    option_a VARCHAR(255),  -- Now nullable for true/false questions
-    option_b VARCHAR(255),  -- Now nullable for true/false questions
-    option_c VARCHAR(255),  -- Now nullable for true/false questions
-    option_d VARCHAR(255),  -- Now nullable for true/false questions
+    option_a VARCHAR(255),  -- For true/false: 'True' or true statement
+    option_b VARCHAR(255),  -- For true/false: 'False' or false statement
+    option_c VARCHAR(255),  -- Null for true/false, required for MCQ
+    option_d VARCHAR(255),  -- Null for true/false, required for MCQ
     correct_answer VARCHAR(10) NOT NULL,
     question_type VARCHAR(20) NOT NULL DEFAULT 'single' 
         CHECK (question_type IN ('single', 'multi', 'true_false')),
     points INT DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    -- Additional constraint for correct_answer validation
+    -- Additional constraints for data integrity
     CONSTRAINT valid_correct_answer CHECK (
         (question_type IN ('single', 'multi') AND correct_answer ~ '^[a-d](,[a-d])*$') OR
-        (question_type = 'true_false' AND correct_answer IN ('true', 'false'))
+        (question_type = 'true_false' AND correct_answer IN ('a', 'b'))
+    ),
+    
+    -- Ensure options are appropriate for question type
+    CONSTRAINT options_for_question_type CHECK (
+        (question_type = 'true_false' AND option_c IS NULL AND option_d IS NULL) OR
+        (question_type IN ('single', 'multi') AND 
+         option_a IS NOT NULL AND option_b IS NOT NULL AND 
+         option_c IS NOT NULL AND option_d IS NOT NULL)
     )
 );
 
@@ -148,11 +156,37 @@ CREATE TABLE user_responses (
     user_id INT REFERENCES users(user_id),
     question_id INT REFERENCES questions(question_id),
     selected_answer VARCHAR(10) 
-        CHECK (selected_answer IS NULL OR selected_answer IN ('a', 'b', 'c', 'd', 'true', 'false')),
+        CHECK (selected_answer IS NULL OR selected_answer IN ('a', 'b', 'c', 'd')),
     is_correct BOOLEAN,
-    responded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    responded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Foreign key with cascade delete
+    FOREIGN KEY (question_id) REFERENCES questions(question_id) ON DELETE CASCADE
 );
 
+-- Add indexes for better performance
+CREATE INDEX idx_questions_quiz_id ON questions(quiz_id);
+CREATE INDEX idx_questions_question_type ON questions(question_type);
+CREATE INDEX idx_user_responses_user_id ON user_responses(user_id);
+CREATE INDEX idx_user_responses_question_id ON user_responses(question_id);
+
+ALTER TABLE questions ADD CONSTRAINT options_for_question_type CHECK (
+    (question_type = 'true_false' AND 
+     (option_c IS NULL OR option_c = '') AND 
+     (option_d IS NULL OR option_d = '')) OR
+    (question_type IN ('single', 'multi') AND 
+     option_a IS NOT NULL AND option_b IS NOT NULL AND 
+     option_c IS NOT NULL AND option_d IS NOT NULL)
+);
+
+
+
+ALTER TABLE user_responses DROP CONSTRAINT IF EXISTS user_responses_selected_answer_check;
+
+ALTER TABLE user_responses ADD CONSTRAINT user_responses_selected_answer_check 
+    CHECK (selected_answer IS NULL OR 
+           selected_answer ~ '^[a-d](,[a-d])*$' OR  -- Allows single or comma-separated values like 'a' or 'a,b,d'
+           selected_answer IN ('true', 'false'));
 ------------------------------------------------------------------
 -------------------------------------------------------------------     (not needed)
 
